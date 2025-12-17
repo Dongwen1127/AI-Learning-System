@@ -564,6 +564,54 @@
                 flex-direction: column;
             }
         }
+		
+		/* 在现有CSS中添加学情画像相关样式 */
+		.tag {
+			display: inline-block;
+			background: #f0f7ff;
+			color: #1677ff;
+			border: 1px solid #91caff;
+			padding: 4px 12px;
+			border-radius: 15px;
+			font-size: 12px;
+			margin: 2px;
+		}
+
+		.tag-success {
+			background: #f6ffed;
+			color: #52c41a;
+			border-color: #b7eb8f;
+		}
+
+		.tag-warning {
+			background: #fff7e6;
+			color: #fa8c16;
+			border-color: #ffd591;
+		}
+
+		.tag-danger {
+			background: #fff2f0;
+			color: #ff4d4f;
+			border-color: #ffccc7;
+		}
+
+		.portrait-section {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			margin-bottom: 20px;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+		}
+
+		.suggestion-item {
+			display: flex;
+			align-items: flex-start;
+			padding: 10px;
+			background: #f7f8fa;
+			border-radius: 6px;
+			border-left: 3px solid #1677ff;
+			margin-bottom: 8px;
+		}
     </style>
 </head>
 <body>
@@ -583,8 +631,8 @@
         <div class="nav-item" data-target="after-class">
             <i>📝</i> 课后复习
         </div>
-        <div class="nav-item" data-target="progress">
-            <i>📊</i> 学习进度
+        <div class="nav-item" data-target="portrait">
+            <i>📊</i> 学情画像
         </div>
     </div>
     
@@ -773,16 +821,148 @@ print(f"平均分: {average}")</textarea>
             </div>
         </div>
         
-        <!-- 学习进度区域 -->
-        <div class="section" id="progress">
-            <div class="section-header">
-                <h2>学习进度分析</h2>
-            </div>
-            <div class="section-content" style="padding: 20px; text-align: center;">
-                <h3>学习数据分析功能开发中...</h3>
-                <p>这里将展示您的学习进度、知识点掌握情况和个性化学习建议。</p>
-            </div>
-        </div>
+        <!-- 学情画像区域 -->
+		<div class="section" id="portrait">
+			<div class="section-header">
+				<h2>学情画像 <span class="badge">AI智能分析</span></h2>
+				<div>
+					<button class="btn btn-secondary" id="refresh-portrait">刷新画像</button>
+					<button class="btn btn-primary" id="export-portrait">导出报告</button>
+				</div>
+			</div>
+			
+			<div class="section-content" id="portrait-content" style="padding: 20px; overflow-y: auto;">
+				<!-- 数据不足提示 -->
+				<div class="portrait-empty" id="portrait-empty" style="display: none; text-align: center; padding: 40px;">
+					<div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+					<h3 style="margin-bottom: 10px;">数据不足，无法生成学情画像</h3>
+					<p style="color: #666; margin-bottom: 20px;">您需要与AI助手进行更多互动才能生成准确的学情分析</p>
+					<div style="background: #f0f7ff; padding: 15px; border-radius: 8px; max-width: 400px; margin: 0 auto;">
+						<p><strong>当前对话记录：</strong> <span id="current-messages">0</span> 条</p>
+						<p><strong>所需最少对话：</strong> <span id="required-messages">4</span> 条</p>
+					</div>
+					<p style="margin-top: 20px;">
+						<button class="btn btn-primary" onclick="document.querySelector('.nav-item[data-target=\"pre-class\"]').click()">
+							去课前预习 →
+						</button>
+						<button class="btn btn-secondary" onclick="document.querySelector('.nav-item[data-target=\"in-class\"]').click()">
+							去课中学习 →
+						</button>
+					</p>
+				</div>
+				
+				<!-- 学情画像内容 -->
+				<div class="portrait-content" id="portrait-data" style="display: none;">
+					<!-- 顶部概览 -->
+					<div class="portrait-overview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+						<div style="display: flex; justify-content: space-between; align-items: center;">
+							<div>
+								<h3 style="margin-bottom: 5px;">学情画像概览</h3>
+								<p style="opacity: 0.9;">基于AI对话的智能分析</p>
+							</div>
+							<div style="text-align: center;">
+								<div style="position: relative; width: 100px; height: 100px;">
+									<canvas id="mastery-chart" width="100" height="100"></canvas>
+									<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+										<div style="font-size: 24px; font-weight: bold;" id="mastery-score">0%</div>
+										<div style="font-size: 12px;">掌握度</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<!-- 总体评价 -->
+					<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+						<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+							<span style="margin-right: 10px;">📋</span> 总体评价
+						</h4>
+						<div class="overall-evaluation" id="overall-evaluation" style="line-height: 1.6; color: #333;">
+							加载中...
+						</div>
+					</div>
+					
+					<!-- 学习特点和认知水平 -->
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+						<!-- 学习特点 -->
+						<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+							<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+								<span style="margin-right: 10px;">🌟</span> 学习特点
+							</h4>
+							<div style="margin-bottom: 15px;">
+								<h5 style="color: #52c41a; margin-bottom: 8px;">优势</h5>
+								<div id="strengths-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+									<!-- 通过JS动态添加 -->
+								</div>
+							</div>
+							<div>
+								<h5 style="color: #ff4d4f; margin-bottom: 8px;">不足</h5>
+								<div id="weaknesses-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+									<!-- 通过JS动态添加 -->
+								</div>
+							</div>
+						</div>
+						
+						<!-- 认知水平和学习风格 -->
+						<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+							<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+								<span style="margin-right: 10px;">🧠</span> 认知与风格
+							</h4>
+							<div style="margin-bottom: 15px;">
+								<h5 style="color: #333; margin-bottom: 5px;">认知水平</h5>
+								<div id="cognitive-level" style="padding: 10px; background: #f7f8fa; border-radius: 5px; font-size: 14px;">
+									加载中...
+								</div>
+							</div>
+							<div>
+								<h5 style="color: #333; margin-bottom: 5px;">学习风格</h5>
+								<div id="learning-style" style="padding: 10px; background: #f7f8fa; border-radius: 5px; font-size: 14px;">
+									加载中...
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<!-- 知识掌握情况 -->
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+						<!-- 已掌握知识点 -->
+						<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+							<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+								<span style="margin-right: 10px;">✅</span> 已掌握知识点
+							</h4>
+							<div id="mastered-topics" style="display: flex; flex-wrap: wrap; gap: 8px;">
+								<!-- 通过JS动态添加 -->
+							</div>
+						</div>
+						
+						<!-- 需加强知识点 -->
+						<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+							<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+								<span style="margin-right: 10px;">📈</span> 需加强知识点
+							</h4>
+							<div id="need-improvement-topics" style="display: flex; flex-wrap: wrap; gap: 8px;">
+								<!-- 通过JS动态添加 -->
+							</div>
+						</div>
+					</div>
+					
+					<!-- 具体建议 -->
+					<div class="portrait-section" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+						<h4 style="color: #1677ff; margin-bottom: 15px; display: flex; align-items: center;">
+							<span style="margin-right: 10px;">💡</span> 学习建议
+						</h4>
+						<div id="suggestions-list" style="display: flex; flex-direction: column; gap: 10px;">
+							<!-- 通过JS动态添加 -->
+						</div>
+					</div>
+					
+					<!-- 统计信息 -->
+					<div style="background: #f7f8fa; padding: 15px; border-radius: 8px; font-size: 12px; color: #666; text-align: center;">
+						学情画像基于<span id="portrait-message-count">0</span>条对话记录生成，更新于<span id="portrait-update-time">刚刚</span>
+					</div>
+				</div>
+			</div>
+		</div>
     </div>
 
     <script>
@@ -816,6 +996,11 @@ print(f"平均分: {average}")</textarea>
                 if (targetId === 'after-class') {
                     loadLearningProgress();
                 }
+				
+				// 如果切换到学情画像区域，加载学情画像
+				if (targetId === 'portrait') {
+					loadLearningPortrait();
+				}
             });
         });
         
@@ -1414,7 +1599,271 @@ print(f"平均分: {average}")</textarea>
             
             showStatus('code-output', '代码已导出为my_code.py', 'success');
         });
-        
+		
+		/*******学情画像 start *******************************/
+		// 加载学情画像
+		async function loadLearningPortrait() {
+			try {
+				const response = await callApi('/api/analyze-portrait', {
+					session_id: sessionId
+				});
+				
+				if (response.success && response.portrait_available) {
+					displayPortrait(response.data);
+				} else {
+					// 传递完整的响应对象
+					showPortraitEmptyState({
+						message: response.message || '数据不足，无法生成学情画像',
+						current_messages: response.current_messages || 0,
+						minimum_required: response.minimum_required || 4
+					});
+				}
+			} catch (error) {
+				console.error('加载学情画像失败:', error);
+				showStatus('portrait-content', '加载学情画像失败，请稍后重试', 'error');
+				// 传递默认的空状态数据
+				showPortraitEmptyState({
+					message: '网络连接错误，请检查服务器',
+					current_messages: 0,
+					minimum_required: 4
+				});
+			}
+		}
+
+		// 显示学情画像
+		function displayPortrait(portraitData) {
+			// 显示画像内容，隐藏空状态
+			document.getElementById('portrait-empty').style.display = 'none';
+			document.getElementById('portrait-data').style.display = 'block';
+			
+			// 更新总体评价
+			document.getElementById('overall-evaluation').textContent = portraitData.overall_evaluation || '暂无评价';
+			
+			// 更新掌握度分数和图表
+			const masteryScore = portraitData.mastery_score || 0;
+			document.getElementById('mastery-score').textContent = masteryScore + '%';
+			
+			// 创建掌握度图表
+			createMasteryChart(masteryScore);
+			
+			// 更新学习特点
+			const strengths = portraitData.learning_characteristics?.strengths || [];
+			const weaknesses = portraitData.learning_characteristics?.weaknesses || [];
+			updateTagList('strengths-list', strengths, 'success');
+			updateTagList('weaknesses-list', weaknesses, 'danger');
+			
+			// 更新认知水平和学习风格
+			document.getElementById('cognitive-level').textContent = portraitData.cognitive_level || '未分析';
+			document.getElementById('learning-style').textContent = portraitData.learning_style || '未分析';
+			
+			// 更新知识点掌握情况
+			const masteredTopics = portraitData.knowledge_status?.mastered_topics || [];
+			const needImprovementTopics = portraitData.knowledge_status?.need_improvement_topics || [];
+			updateTagList('mastered-topics', masteredTopics, 'primary');
+			updateTagList('need-improvement-topics', needImprovementTopics, 'warning');
+			
+			// 更新学习建议
+			const suggestions = portraitData.specific_suggestions || [];
+			updateSuggestionsList('suggestions-list', suggestions);
+			
+			// 更新统计信息 - 使用后端返回的 total_messages
+			const totalMessages = portraitData.total_messages || 0;
+			document.getElementById('portrait-message-count').textContent = totalMessages;
+			document.getElementById('portrait-update-time').textContent = new Date().toLocaleTimeString();
+		}
+
+
+		// 显示空状态
+		function showPortraitEmptyState(response) {
+			document.getElementById('portrait-empty').style.display = 'block';
+			document.getElementById('portrait-data').style.display = 'none';
+			
+			// 从响应中获取消息数量
+			const currentMessages = response.current_messages || 0;
+			const requiredMessages = response.minimum_required || 4;
+			
+			document.getElementById('current-messages').textContent = currentMessages;
+			document.getElementById('required-messages').textContent = requiredMessages;
+		}
+
+		// 创建掌握度图表
+		function createMasteryChart(score) {
+			const canvas = document.getElementById('mastery-chart');
+			if (!canvas) return;
+			
+			const ctx = canvas.getContext('2d');
+			const centerX = canvas.width / 2;
+			const centerY = canvas.height / 2;
+			const radius = Math.min(centerX, centerY) - 5;
+			
+			// 清空画布
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			
+			// 绘制背景圆
+			ctx.beginPath();
+			ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+			ctx.fillStyle = '#f0f0f0';
+			ctx.fill();
+			
+			// 绘制进度圆
+			const progress = (score / 100) * 2 * Math.PI;
+			ctx.beginPath();
+			ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + progress);
+			ctx.lineTo(centerX, centerY);
+			ctx.closePath();
+			
+			// 根据分数设置颜色
+			let color;
+			if (score >= 80) {
+				color = '#52c41a'; // 绿色
+			} else if (score >= 60) {
+				color = '#fa8c16'; // 橙色
+			} else {
+				color = '#ff4d4f'; // 红色
+			}
+			
+			ctx.fillStyle = color;
+			ctx.fill();
+		}
+
+		// 更新标签列表
+		function updateTagList(elementId, items, type = 'primary') {
+			const container = document.getElementById(elementId);
+			if (!container) return;
+			
+			container.innerHTML = '';
+			
+			items.forEach(item => {
+				const tag = document.createElement('span');
+				tag.className = 'tag';
+				tag.textContent = item;
+				
+				// 根据类型设置样式
+				let bgColor, textColor;
+				switch(type) {
+					case 'success':
+						bgColor = '#f6ffed';
+						textColor = '#52c41a';
+						borderColor = '#b7eb8f';
+						break;
+					case 'danger':
+						bgColor = '#fff2f0';
+						textColor = '#ff4d4f';
+						borderColor = '#ffccc7';
+						break;
+					case 'warning':
+						bgColor = '#fff7e6';
+						textColor = '#fa8c16';
+						borderColor = '#ffd591';
+						break;
+					default: // primary
+						bgColor = '#f0f7ff';
+						textColor = '#1677ff';
+						borderColor = '#91caff';
+				}
+				
+				tag.style.cssText = `
+					display: inline-block;
+					background: ${bgColor};
+					color: ${textColor};
+					border: 1px solid ${borderColor};
+					padding: 4px 12px;
+					border-radius: 15px;
+					font-size: 12px;
+					margin: 2px;
+				`;
+				
+				container.appendChild(tag);
+			});
+		}
+
+		// 更新建议列表
+		function updateSuggestionsList(elementId, suggestions) {
+			const container = document.getElementById(elementId);
+			if (!container) return;
+			
+			container.innerHTML = '';
+			
+			suggestions.forEach((suggestion, index) => {
+				const suggestionDiv = document.createElement('div');
+				suggestionDiv.className = 'suggestion-item';
+				suggestionDiv.style.cssText = `
+					display: flex;
+					align-items: flex-start;
+					padding: 10px;
+					background: #f7f8fa;
+					border-radius: 6px;
+					border-left: 3px solid #1677ff;
+				`;
+				
+				const numberSpan = document.createElement('span');
+				numberSpan.textContent = (index + 1) + '.';
+				numberSpan.style.cssText = `
+					font-weight: bold;
+					color: #1677ff;
+					margin-right: 10px;
+					min-width: 20px;
+				`;
+				
+				const textSpan = document.createElement('span');
+				textSpan.textContent = suggestion;
+				textSpan.style.cssText = 'flex: 1; line-height: 1.5;';
+				
+				suggestionDiv.appendChild(numberSpan);
+				suggestionDiv.appendChild(textSpan);
+				container.appendChild(suggestionDiv);
+			});
+		}
+
+		// 刷新学情画像
+		document.getElementById('refresh-portrait').addEventListener('click', function() {
+			const button = this;
+			button.disabled = true;
+			button.textContent = '分析中...';
+			
+			loadLearningPortrait().finally(() => {
+				button.disabled = false;
+				button.textContent = '刷新画像';
+			});
+		});
+
+		// 导出学情报告
+		document.getElementById('export-portrait').addEventListener('click', function() {
+			const portraitData = document.getElementById('portrait-data');
+			if (portraitData.style.display === 'none') {
+				showStatus('portrait-content', '没有可导出的学情画像数据', 'error');
+				return;
+			}
+			
+			// 创建报告内容
+			let reportContent = '=== 学情画像分析报告 ===\n\n';
+			reportContent += '生成时间：' + new Date().toLocaleString() + '\n';
+			reportContent += '会话ID：' + sessionId + '\n\n';
+			
+			// 添加各个部分的内容
+			const sections = document.querySelectorAll('.portrait-section');
+			sections.forEach((section, index) => {
+				const title = section.querySelector('h4')?.textContent || '未知部分';
+				const content = section.textContent.replace(title, '').trim();
+				
+				reportContent += `${index + 1}. ${title}\n`;
+				reportContent += content + '\n\n';
+			});
+			
+			// 创建并下载文件
+			const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `学情画像报告_${sessionId}_${new Date().getTime()}.txt`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+			
+			showStatus('portrait-content', '学情报告已导出为文本文件', 'success');
+		});
+        /**********学情画像 end *********************************************/
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('AI助学系统已加载，会话ID:', sessionId);
@@ -1432,6 +1881,9 @@ print(f"平均分: {average}")</textarea>
             
             // 初始化任务卡片
             initTaskCards();
+			
+			// 初始化学情画像
+			loadLearningPortrait();
         });
     </script>
 </body>
