@@ -3,3 +3,5 @@
 <img width="1317" height="718" alt="课前预习" src="https://github.com/user-attachments/assets/f24f3fc5-4ed1-4880-9c57-c22ee67c5d70" />
 <img width="1312" height="718" alt="课中学习" src="https://github.com/user-attachments/assets/8b70d479-1b39-4a39-a81b-419b2295a7a8" />
 <img width="1312" height="716" alt="课后复习" src="https://github.com/user-attachments/assets/7a1d1980-8d9c-4632-b929-c69fc56cd54d" />
+<img width="1280" height="684" alt="学情画像1" src="https://github.com/user-attachments/assets/344ca18f-5b7b-47fc-b069-32a51101b99a" />
+<img width="1300" height="694" alt="学情画像2" src="https://github.com/user-attachments/assets/ee6d600e-27aa-4d9f-8203-9fa19e3ee116" />
