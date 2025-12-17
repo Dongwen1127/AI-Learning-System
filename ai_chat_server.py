@@ -9,7 +9,7 @@ import random
 
 # 初始化OpenAI客户端
 client = OpenAI(
-    api_key="换成自己的apikey",
+    api_key="sk-fzL1g6l3ouBhGi0Lqq1HScXZFlSqJrq6TOpFjJBBVsqCOSYB",
     base_url="https://api.chatanywhere.tech/v1"
 )
 
@@ -264,6 +264,116 @@ def analyze_progress(session_id, conversation_history=None):
             "data_insufficient": False
         }
         
+def analyze_learning_portrait(session_id, conversation_history=None):
+    """分析学情画像，返回结构化学情数据"""
+    # 如果未提供对话历史，则从sessions中获取
+    if conversation_history is None:
+        session_data = sessions.get(session_id, {})
+        conversation_history = []
+        
+        # 遍历所有phase，合并对话历史
+        for phase, messages in session_data.items():
+            conversation_history.extend(messages)
+    
+    # 计算对话历史中的消息数量
+    history_count = len(conversation_history) if conversation_history else 0
+    
+    # 如果对话历史太少，返回数据不足的提示
+    if history_count < 4:  # 至少需要两次完整的对话（用户提问+AI回答）
+        return {
+            "portrait_available": False,
+            "message": "对话数据不足，无法生成学情画像。请先与AI助手进行更多互动。",
+            "minimum_messages_required": 4,
+            "current_messages": history_count,
+            "total_messages": history_count  # 添加消息总数
+        }
+    
+    # 将对话历史转换为文本
+    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+    
+    prompt = f"""
+    基于以下学习对话历史，分析学生的学情画像并提供结构化数据：
+    {history_text}
+    
+    请从以下维度进行分析，并返回一个JSON格式的学情画像：
+    1. 总体评价：用一段话描述学生的学习情况和特点
+    2. 知识掌握：用0-100的分数表示整体掌握程度
+    3. 学习特点：包含优势（strengths）和不足（weaknesses）的列表
+    4. 知识掌握情况：包含已掌握知识点（mastered_topics）和需加强知识点（need_improvement_topics）的列表
+    5. 学习风格：包含学习偏好（如视觉型、听觉型、动手型等）
+    6. 认知水平：评估学生的认知发展阶段
+    7. 具体建议：提供3-5条具体、可操作的学习建议
+    
+    请确保返回的是纯JSON格式，不要有其他文本。JSON结构示例如下：
+    {{
+        "portrait_available": true,
+        "overall_evaluation": "学生对Python基础语法掌握较好，但逻辑思维能力有待提高...",
+        "mastery_score": 75,
+        "learning_characteristics": {{
+            "strengths": ["记忆能力强", "学习态度认真"],
+            "weaknesses": ["逻辑推理能力需加强", "解决问题的方法单一"]
+        }},
+        "knowledge_status": {{
+            "mastered_topics": ["变量定义", "基本数据类型"],
+            "need_improvement_topics": ["循环嵌套", "函数递归"]
+        }},
+        "learning_style": "动手实践型，喜欢通过编写代码来学习",
+        "cognitive_level": "能够理解基本概念，但综合应用能力需提升",
+        "specific_suggestions": [
+            "建议多练习算法逻辑题目，如斐波那契数列、排序算法等",
+            "尝试将复杂问题分解为多个小问题逐个解决",
+            "参与小型项目开发，提高综合应用能力"
+        ]
+    }}
+    """
+    
+    messages = [
+        {"role": "system", "content": "你是一位专业的教学分析师，擅长通过对话分析学生的学情画像。请只返回JSON格式的数据。"},
+        {"role": "user", "content": prompt}
+    ]
+    
+    try:
+        analysis_text = gpt_35_api_stream(messages)
+        
+        # 尝试解析JSON
+        import re
+        json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            result["portrait_available"] = True
+            result["total_messages"] = history_count  # 添加消息总数
+            return result
+        else:
+            # 如果无法解析，返回默认值
+            return {
+                "portrait_available": True,
+                "total_messages": history_count,  # 添加消息总数
+                "overall_evaluation": "根据对话分析，学生具备良好的学习态度，但在复杂问题解决方面需要更多练习。",
+                "mastery_score": 70,
+                "learning_characteristics": {
+                    "strengths": ["学习积极性高", "基础知识掌握较好"],
+                    "weaknesses": ["复杂逻辑处理能力需提升", "代码调试技巧不足"]
+                },
+                "knowledge_status": {
+                    "mastered_topics": ["Python基础语法", "简单循环"],
+                    "need_improvement_topics": ["函数设计", "算法思维"]
+                },
+                "learning_style": "倾向于理论学习和简单实践，需要更多项目实战经验",
+                "cognitive_level": "处于知识应用阶段，能够运用基础知识解决简单问题",
+                "specific_suggestions": [
+                    "参与更多实际编码项目，提高问题解决能力",
+                    "学习调试技巧，提高代码错误排查效率",
+                    "尝试用不同方法解决同一个问题，拓展思维"
+                ]
+            }
+    except Exception as e:
+        # 如果解析失败，返回错误信息
+        return {
+            "portrait_available": False,
+            "message": f"学情画像生成失败：{str(e)}",
+            "total_messages": history_count
+        }
+
 # 定义请求处理器
 class AIHandler(BaseHTTPRequestHandler):
     def _set_cors_headers(self):
@@ -501,6 +611,35 @@ class AIHandler(BaseHTTPRequestHandler):
                 
                 response = {"success": True, "project_id": project_id}
             
+            elif self.path == '/api/analyze-portrait':
+                # 分析学情画像
+                session_id = parsed_data.get('session_id', 'default')
+                
+                # 获取session_id下的所有对话历史
+                session_data = sessions.get(session_id, {})
+                conversation_history = []
+                
+                # 遍历所有phase，合并对话历史
+                for phase, messages in session_data.items():
+                    conversation_history.extend(messages)
+                
+                portrait_data = analyze_learning_portrait(session_id, conversation_history)
+                
+                if portrait_data.get("portrait_available", False):
+                    response = {
+                        "success": True,
+                        "portrait_available": True,
+                        "data": portrait_data
+                    }
+                else:
+                    response = {
+                        "success": False,
+                        "portrait_available": False,
+                        "message": portrait_data.get("message", "无法生成学情画像"),
+                        "current_messages": portrait_data.get("current_messages", 0),
+                        "minimum_required": portrait_data.get("minimum_messages_required", 4)
+                    }
+        
             else:
                 response = {"success": False, "message": "不支持的API端点"}
         
@@ -531,9 +670,9 @@ def run_server():
     print("  POST /api/save-project    - 保存代码项目")
     print("  GET  /api/projects        - 获取项目列表")
     print("  GET  /api/project/{id}    - 获取特定项目")
+    print("  POST /api/analyze-portrait   - 生成学情画像")
     print("="*60)
     httpd.serve_forever()
 
 if __name__ == "__main__":
-
     run_server()
